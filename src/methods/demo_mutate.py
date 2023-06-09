@@ -1,9 +1,10 @@
 import random
 from .abstract_method import AbstractMethods
 
+
 class constract_prompt(AbstractMethods):
-    def __init__(self,prompt,test,entry_point):
-        super().__init__(prompt,test,entry_point)
+    def __init__(self, prompt, test, entry_point):
+        super().__init__(prompt, test, entry_point)
 
     def add_demo(self):
         # Divide the test cases in test
@@ -27,7 +28,6 @@ class constract_prompt(AbstractMethods):
         else:
             print("add_demo fail,please check the test")
 
-
     def del_demo(self):
         prompt = self.prompt
         # find all tests from prompt
@@ -45,8 +45,6 @@ class constract_prompt(AbstractMethods):
             del_test = '>>> ' + random_statement
             new_prompt = prompt.replace(del_test, "")
             return new_prompt
-
-
 
     def rep_demo(self):
         prompt = self.prompt
