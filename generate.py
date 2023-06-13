@@ -12,7 +12,7 @@ from rich.progress import (
 )
 
 from utils import get_human_eval
-
+from src.methods.demo_mutate import constract_prompt
 
 def code_generate(args, workdir: PathLike, model: DecoderBase):
     # 该函数的作用是生成代码。它接受三个参数：args（命令行参数）、workdir（工作目录的路径）和model（模型对象）。
@@ -50,8 +50,20 @@ def code_generate(args, workdir: PathLike, model: DecoderBase):
 
             sidx = args.n_samples - nsamples
             while sidx < args.n_samples:
+                if args.constract_prompt == "base":
+                    prompt = task["prompt"]
+                elif prompt == "add_demo":
+                    methods = constract_prompt(task['prompt'], task['test'], task['entry_point'])
+                    prompt = methods.add_demo()
+                elif prompt == "del_demo":
+                    methods = constract_prompt(task['prompt'], task['test'], task['entry_point'])
+                    prompt = methods.del_demo()
+                elif prompt == "rep_demo":
+                    methods = constract_prompt(task['prompt'], task['test'], task['entry_point'])
+                    prompt = methods.rep_demo()
+
                 outputs = model.codegen(
-                        task["prompt"],
+                        prompt,
                     do_sample=not args.greedy,
                     num_samples=args.n_samples - sidx,
                 )
@@ -65,7 +77,7 @@ def code_generate(args, workdir: PathLike, model: DecoderBase):
                             if args.model in {"chatgpt", "gpt-4"}:
                                 f.write(impl)
                             else:
-                                f.write(task["prompt"] + impl)
+                                f.write(prompt + impl)
                     except UnicodeEncodeError:
                         continue
                     sidx += 1
@@ -76,8 +88,9 @@ def main():
     parser.add_argument("--model", required=True, type=str)
     parser.add_argument("--bs", required=True, type=int)
     parser.add_argument("--temperature", required=True, type=float)
+    parser.add_argument("--constract_prompt", required=True, type=float)
     parser.add_argument("--dataset", default="humaneval", type=str)
-    parser.add_argument("--root", default="./src/codegen", type=str)
+    parser.add_argument("--root", default="./workdir/codegen", type=str)
     parser.add_argument("--n_samples", default=200, type=int)
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--greedy", action="store_true")
@@ -98,6 +111,10 @@ def main():
     if args.dataset not in ["humaneval"]:
         raise NotImplementedError("Unsupported dataset: {}".format(args.dataset))
 
+    if args.constract_prompt not in ["base", "add_demo", "del_demo","rep_demo"]:
+        raise NotImplementedError(
+            "Unsupported contract usage: {}".format(args.constract_prompt)
+        )
 
     # 当args.greedy为True时，代码中只允许使用temperature=0、batch_size=1和n_samples=1。
     # 这意味着，在greedy decoding模式下，只能生成一个单一、确定性的结果。
@@ -120,6 +137,7 @@ def main():
     workdir = os.path.join(
         args.root,
         args.dataset,
+        args.constract_prompt,
         args.model
         + f"_temp_{args.temperature}"
         ,

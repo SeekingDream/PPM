@@ -10,7 +10,7 @@ from appdirs import user_cache_dir
 
 # CACHE_DIR = user_cache_dir("CodeModel")
 
-CACHE_DIR = "./Dataset"
+CACHE_DIR = "./workdir/Dataset"
 HUMANEVAL_URL = (
     "https://github.com/openai/human-eval/raw/master/data/HumanEval.jsonl.gz"
 )

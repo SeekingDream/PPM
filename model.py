@@ -4,7 +4,7 @@ from typing import List
 from warnings import warn
 
 # Communism
-os.environ["HF_HOME"] = os.environ.get("HF_HOME", "./src/huggingface/")
+os.environ["HF_HOME"] = os.environ.get("HF_HOME", "./workdir/huggingface/")
 # 这一行设置了环境变量HF_HOME的值。它使用os.environ.get函数检索HF_HOME环境变量的值，如果存在，则使用该值；如果不存在，则将其设置为"/JawTitan/huggingface/"。
 
 
