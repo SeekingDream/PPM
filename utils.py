@@ -14,7 +14,7 @@ CACHE_DIR = "./workdir/Dataset"
 HUMANEVAL_URL = (
     "https://github.com/openai/human-eval/raw/master/data/HumanEval.jsonl.gz"
 )
-
+human_eval_cleaned_doc = './workdir/Dataset/humaneval-py-transform.json'
 def get_human_eval() -> Dict[str, Dict]:
     """Get HumanEval from OpenAI's github repo and return as a list of parsed dicts.
 
@@ -52,4 +52,23 @@ def get_human_eval() -> Dict[str, Dict]:
     human_eval = open(human_eval_path, "r").read() if not human_eval else human_eval
     human_eval = human_eval.split("\n")
     human_eval = [json.loads(line) for line in human_eval if line]
+
+
+    # Handle 115_max_fill.py to make its docstring well-formed
+    human_eval[114]["prompt"] = "import math\n" + human_eval[114]["prompt"].replace(
+        "import math\n", ""
+    )
+
     return {task["task_id"]: task for task in human_eval}
+
+def get_human_eval_cleaned_doc() -> Dict[str, Dict]:
+    with open(human_eval_cleaned_doc, 'r') as f:
+        data = json.load(f)
+
+    for task in data:
+        name = task['name']
+        pos = name.find("_", name.find("_") + 1)
+        task['task_id'] = name[:pos]
+        task['entry_point'] = name[pos + 1:]
+
+    return {task["task_id"]: task for task in data}

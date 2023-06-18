@@ -1,8 +1,7 @@
 import argparse
-import os
+import json
 from os import PathLike
-
-from model import DecoderBase, make_model
+from codeGen.model import DecoderBase, make_model
 from rich.progress import (
     BarColumn,
     MofNCompleteColumn,
@@ -11,8 +10,11 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 
-from utils import get_human_eval
+from utils import get_human_eval_cleaned_doc
 from src.methods.demo_mutate import constract_prompt
+
+import os
+os.environ['CUDA_VISIBLE_DEVICES']='1'
 
 def code_generate(args, workdir: PathLike, model: DecoderBase):
     # 该函数的作用是生成代码。它接受三个参数：args（命令行参数）、workdir（工作目录的路径）和model（模型对象）。
@@ -27,18 +29,39 @@ def code_generate(args, workdir: PathLike, model: DecoderBase):
         TextColumn("•"),
         TimeElapsedColumn(),
     ) as p:
-        for task_id, task in p.track(get_human_eval().items()):
+        for task_id, task in p.track(get_human_eval_cleaned_doc().items()):
             # 任务id中的"/“替换成了”_"
-            p_name = task_id.replace("/", "_")
-            os.makedirs(os.path.join(workdir, p_name), exist_ok=True)
-            log = f"Codegen: {p_name} @ {model}"
+            # p_name = task_id.replace("/", "_")
+            os.makedirs(os.path.join(workdir, task_id), exist_ok=True)
+            # log = f"Codegen: {p_name} @ {model}"
+            log = f"Codegen: {task_id} @ {model}"
             n_existing = 0
+
+            # 根据baseline构建prompt
+            if args.constract_prompt == "base":
+                prompt = task["prompt"]
+            elif args.constract_prompt == "add_demo":
+                methods = constract_prompt(task['prompt'], task['tests'], task['entry_point'])
+                prompt = methods.add_demo()
+            elif args.constract_prompt == "del_demo":
+                methods = constract_prompt(task['prompt'], task['tests'], task['entry_point'])
+                prompt = methods.del_demo()
+            elif args.constract_prompt == "rep_demo":
+                methods = constract_prompt(task['prompt'], task['tests'], task['entry_point'])
+                prompt = methods.rep_demo()
+
+            # 将prompt保存
+            with open(os.path.join(workdir, task_id, "prompt.txt"), "w") as f:
+                f.write(str(prompt))
+
+            result = {'name': task['name'], 'language': task['language'], 'prompt': task['prompt'],'tests': task['tests'],'completions': [],"stop_tokens": task['stop_tokens']}
+
             if args.resume:
                 # count existing .py files
                 n_existing = len(
                     [
                         f
-                        for f in os.listdir(os.path.join(workdir, p_name))
+                        for f in os.listdir(os.path.join(workdir, task_id))
                         if f.endswith(".py")
                     ]
                 )
@@ -50,17 +73,6 @@ def code_generate(args, workdir: PathLike, model: DecoderBase):
 
             sidx = args.n_samples - nsamples
             while sidx < args.n_samples:
-                if args.constract_prompt == "base":
-                    prompt = task["prompt"]
-                elif prompt == "add_demo":
-                    methods = constract_prompt(task['prompt'], task['test'], task['entry_point'])
-                    prompt = methods.add_demo()
-                elif prompt == "del_demo":
-                    methods = constract_prompt(task['prompt'], task['test'], task['entry_point'])
-                    prompt = methods.del_demo()
-                elif prompt == "rep_demo":
-                    methods = constract_prompt(task['prompt'], task['test'], task['entry_point'])
-                    prompt = methods.rep_demo()
 
                 outputs = model.codegen(
                         prompt,
@@ -70,17 +82,24 @@ def code_generate(args, workdir: PathLike, model: DecoderBase):
                 for impl in outputs:
                     try:
                         with open(
-                            os.path.join(workdir, p_name, f"{sidx}.py"),
+                            os.path.join(workdir, task_id, f"{sidx}.py"),
                             "w",
                             encoding="utf-8",
                         ) as f:
                             if args.model in {"chatgpt", "gpt-4"}:
                                 f.write(impl)
                             else:
-                                f.write(prompt + impl)
+                                f.write(prompt + impl + task['tests'])
+                                result['completions'].append(impl)
                     except UnicodeEncodeError:
                         continue
                     sidx += 1
+            with open(
+                    os.path.join(workdir, task_id, f"{task_id}.json"),
+                    "w",
+                    encoding="utf-8",
+            ) as f:
+                json.dump(result, f)
 
 
 def main():
@@ -88,7 +107,7 @@ def main():
     parser.add_argument("--model", required=True, type=str)
     parser.add_argument("--bs", required=True, type=int)
     parser.add_argument("--temperature", required=True, type=float)
-    parser.add_argument("--constract_prompt", required=True, type=float)
+    parser.add_argument("--constract_prompt", required=True, type=str)
     parser.add_argument("--dataset", default="humaneval", type=str)
     parser.add_argument("--root", default="./workdir/codegen", type=str)
     parser.add_argument("--n_samples", default=200, type=int)
