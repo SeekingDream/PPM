@@ -10,12 +10,27 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 
-from utils import get_human_eval_cleaned_doc
+from utils import get_human_eval_cleaned_doc, get_mbpp, get_humaneval_cs, get_humaneval_cpp, get_humaneval_java
 from src.methods.demo_mutate import constract_prompt
 
 import os
-os.environ['CUDA_VISIBLE_DEVICES']='1'
 
+
+
+def get_dataset(dataset):
+    if dataset == 'humaneval':
+        return get_human_eval_cleaned_doc()  # 传递相应的参数
+    elif dataset == 'mbpp':
+        return get_mbpp()  # 传递相应的参数
+    elif dataset == 'humaneval_cs':
+        return get_humaneval_cs()  # 传递相应的参数
+    elif dataset == 'humaneval_cpp':
+        return get_humaneval_cpp()  # 传递相应的参数    
+    elif dataset == 'humaneval_java':
+        return get_humaneval_java()  # 传递相应的参数
+    else:
+        raise ValueError('Invalid param')
+    
 def code_generate(args, workdir: PathLike, model: DecoderBase):
     # 该函数的作用是生成代码。它接受三个参数：args（命令行参数）、workdir（工作目录的路径）和model（模型对象）。
 
@@ -29,7 +44,7 @@ def code_generate(args, workdir: PathLike, model: DecoderBase):
         TextColumn("•"),
         TimeElapsedColumn(),
     ) as p:
-        for task_id, task in p.track(get_human_eval_cleaned_doc().items()):
+        for task_id, task in p.track(get_dataset(args.dataset).items()):
             # 任务id中的"/“替换成了”_"
             # p_name = task_id.replace("/", "_")
             os.makedirs(os.path.join(workdir, task_id), exist_ok=True)
@@ -42,13 +57,13 @@ def code_generate(args, workdir: PathLike, model: DecoderBase):
                 prompt = task["prompt"]
             elif args.constract_prompt == "add_demo":
                 methods = constract_prompt(task['prompt'], task['tests'], task['entry_point'])
-                prompt = methods.add_demo()
+                prompt = methods.add_demo(task['language'])
             elif args.constract_prompt == "del_demo":
                 methods = constract_prompt(task['prompt'], task['tests'], task['entry_point'])
-                prompt = methods.del_demo()
+                prompt = methods.del_demo(task['language'])
             elif args.constract_prompt == "rep_demo":
                 methods = constract_prompt(task['prompt'], task['tests'], task['entry_point'])
-                prompt = methods.rep_demo()
+                prompt = methods.rep_demo(task['language'])
 
             # 将prompt保存
             with open(os.path.join(workdir, task_id, "prompt.txt"), "w") as f:
@@ -62,7 +77,7 @@ def code_generate(args, workdir: PathLike, model: DecoderBase):
                     [
                         f
                         for f in os.listdir(os.path.join(workdir, task_id))
-                        if f.endswith(".py")
+                        if f.endswith(f".{task['language']}")
                     ]
                 )
                 if n_existing > 0:
@@ -73,7 +88,7 @@ def code_generate(args, workdir: PathLike, model: DecoderBase):
 
             sidx = args.n_samples - nsamples
             while sidx < args.n_samples:
-
+                # stop_token(task['language'])
                 outputs = model.codegen(
                         prompt,
                     do_sample=not args.greedy,
@@ -82,7 +97,7 @@ def code_generate(args, workdir: PathLike, model: DecoderBase):
                 for impl in outputs:
                     try:
                         with open(
-                            os.path.join(workdir, task_id, f"{sidx}.py"),
+                            os.path.join(workdir, task_id, f"{sidx}.{task['language']}"),
                             "w",
                             encoding="utf-8",
                         ) as f:
@@ -127,7 +142,7 @@ def main():
 
     args = parser.parse_args()
 
-    if args.dataset not in ["humaneval"]:
+    if args.dataset not in ["humaneval","humaneval_cs","humaneval_cpp","humaneval_java"]:
         raise NotImplementedError("Unsupported dataset: {}".format(args.dataset))
 
     if args.constract_prompt not in ["base", "add_demo", "del_demo","rep_demo"]:
