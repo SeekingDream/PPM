@@ -8,9 +8,9 @@
 # 2.codeEval
 
     cd evaluation/src
-    python main.py --dir "../../workdir/codege/humaneval/add_demo" --recursive --output-dir "./output/humaneval/add_demo"
+    python main.py --dir "../../workdir/codegen/humaneval/add_demo" --recursive --output-dir "./output/humaneval/add_demo"
 # 3. Eval_pass@k
-    python pass_k/py --dir "./evaluation/src/output/humaneval/add_demo"
+    python pass_k.py --dir "./evaluation/src/output/humaneval/add_demo"
 
 
 # File Structure
