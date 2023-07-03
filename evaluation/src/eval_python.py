@@ -18,4 +18,3 @@ def eval_script(path: Path):
         "stderr": r.stderr,
     }
 
-eval_script("../datasets/originals-with-cleaned-doctests/HumanEval_8_sum_product.py")
