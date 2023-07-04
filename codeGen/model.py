@@ -2,7 +2,6 @@ import os
 from abc import ABC, abstractmethod
 from typing import List
 from warnings import warn
-
 # Communism
 os.environ["HF_HOME"] = os.environ.get("HF_HOME", "../workdir/huggingface/")
 # 这一行设置了环境变量HF_HOME的值。它使用os.environ.get函数检索HF_HOME环境变量的值，如果存在，则使用该值；如果不存在，则将其设置为"/JawTitan/huggingface/"。
@@ -32,6 +31,7 @@ import openai
 # Acknoledgement:
 # Modified from https://github.com/lm-sys/FastChat/blob/main/fastchat/serve/huggingface_api.py
 import torch
+import torch.nn.functional as F
 from fastchat.serve.inference import load_model
 from transformers import (
     AutoModelForCausalLM,
@@ -45,6 +45,23 @@ from evalplus.gen.util.api_request import create_chatgpt_config, request_chatgpt
 HUMANEVAL_EOS = ["\nclass", "\ndef", "\n#", "\n@", "\nprint", "\nif"]
 NON_CODE_EOS = ["<|endoftext|>", "\n```", "\n</s>", "<|endofmask|>"]
 EOS = HUMANEVAL_EOS + NON_CODE_EOS
+
+# def stop_token(language):
+#     global dataset_EOS
+#     global EOS
+#     if language == 'py':
+#         dataset_EOS = ["\nclass", "\ndef", "\n#", "\n@", "\nprint", "\nif"]
+#         EOS = dataset_EOS + NON_CODE_EOS
+#     elif language == 'cpp':
+#         dataset_EOS = ["\n}"]
+#         EOS = dataset_EOS + NON_CODE_EOS
+#     elif language == 'java' or language == 'cs':
+#         dataset_EOS = ["\n }\n"]
+#         EOS = dataset_EOS + NON_CODE_EOS
+#     else:
+#         raise ValueError(
+#             "language error"
+#         )
 
 
 # Adopted from https://github.com/huggingface/transformers/pull/14897
@@ -222,16 +239,43 @@ class HFTorchDecoder(DecoderBase):
         gen_strs = self.tokenizer.batch_decode(
             gen_seqs, skip_special_tokens=self.skip_special_tokens
         )
+
+        # ===========================
+        generated_tokens = raw_outputs.sequences[:, len(input_tokens[0]):].tolist()
+        tokens = []
+        for token in generated_tokens:
+            tokens.append([self.tokenizer.decode(each, skip_special_tokens=self.skip_special_tokens) for each in token])
         outputs = []
         # removes eos tokens.
-        for output in gen_strs:
+        for i,output in enumerate(gen_strs):
             min_index = 10000
             for eos in self.eos:
                 if eos in output:
-                    # could be multiple eos in outputs, better pick minimum one
                     min_index = min(min_index, output.index(eos))
             outputs.append(output[:min_index])
-        return outputs
+            tokens[i]=tokens[i][:min_index]
+        softmax_output = F.log_softmax(torch.stack(raw_outputs['scores']).permute(1, 0, 2), dim=-1)
+        (batch, num_char, num_vocab) = softmax_output.shape
+        logprobs = []
+        for batch_i in range(batch):
+            logprobs.append([])
+            for char, token in zip(softmax_output[batch_i], generated_tokens[batch_i]):
+                # print(char[token])
+                logprobs[batch_i].append(char[token].item())
+        return outputs, tokens, logprobs
+        # ===========================
+
+
+        # outputs = []
+        # # removes eos tokens.
+        # for output in gen_strs:
+        #     min_index = 10000
+        #     for eos in self.eos:
+        #         if eos in output:
+        #             # could be multiple eos in outputs, better pick minimum one
+        #             min_index = min(min_index, output.index(eos))
+        #     outputs.append(output[:min_index])
+        # return outputs
 
 
 class FsChatDecoder(HFTorchDecoder):
@@ -377,15 +421,46 @@ class IncoderDecoder(HFTorchDecoder):
         gen_strs = self.tokenizer.batch_decode(
             gen_seqs, skip_special_tokens=self.skip_special_tokens
         )
+        # ================================
+        tokens = []
+        generated_tokens = raw_outputs.sequences[:, len(input_tokens[0]):].tolist()
+        for token in generated_tokens:
+            tokens.append([self.tokenizer.decode(each, skip_special_tokens=self.skip_special_tokens) for each in token])
+        # ================================
         outputs = []
         # removes eos tokens.
-        for output in gen_strs:
+        for i,output in enumerate(gen_strs):
             min_index = 10000
             for eos in self.eos:
                 if eos in output:
                     min_index = min(min_index, output.index(eos))
             outputs.append(output[:min_index])
-        return outputs
+            tokens[i]=tokens[i][:min_index]
+        # print(tokens)
+        # print(torch.stack(raw_outputs['scores']).shape)
+        # print(torch.stack(raw_outputs['scores']).squeeze(dim=1).shape)
+        softmax_output = F.log_softmax(torch.stack(raw_outputs['scores']).squeeze(dim=1), dim=-1)
+        (num_char, num_vocab) = softmax_output.shape
+        logprobs = []
+        # print(softmax_output[0])
+        # print(generated_tokens[0])
+        for char, token in zip(softmax_output, generated_tokens[0]):
+            # print(char[token])
+            logprobs.append(char[token].item())
+        # print(logprobs)
+        # print(softmax_output.shape)
+        # print(len(tokens[0]))
+        return outputs, tokens, logprobs
+
+        # outputs = []
+        # # removes eos tokens.
+        # for output in gen_strs:
+        #     min_index = 10000
+        #     for eos in self.eos:
+        #         if eos in output:
+        #             min_index = min(min_index, output.index(eos))
+        #     outputs.append(output[:min_index])
+        # return outputs
 
 
 class Codegen2Decoder(HFTorchDecoder):
