@@ -30,4 +30,3 @@ class AbstractMethods:
         desc_split = desc.split("\n")
         func_entry, comments = desc_split[0], "\n".join(desc_split[1:])
         return func_entry, comments, test_demo
-
