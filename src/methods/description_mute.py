@@ -63,7 +63,10 @@ class CharacterMutation(_DescriptionMutation):
         # generate similar setences using Bert
         if possible_mutate_indexL:
             bert_new_sentences = self.character_mutation(tokens, possible_mutate_indexL)
-        new_comments = random.choice(bert_new_sentences)
+        if len(bert_new_sentences) == 0:
+            new_comments = comments
+        else:
+            new_comments = random.choice(bert_new_sentences)
         return new_comments
 
     def _get_random_letter(self):
@@ -187,7 +190,8 @@ class CharacterMutation(_DescriptionMutation):
         base_tokens = copy.deepcopy(tokens)
         new_sentences = []
         for _ in range(50):
-            samples = random.sample(possible_mutate_indexL, self.num_of_perturb)
+            sampled_num = min(len(possible_mutate_indexL), self.num_of_perturb)
+            samples = random.sample(possible_mutate_indexL, sampled_num)
             mask_indices = [k[0] for k in samples]
             for masked_index in mask_indices:
                 current_token = tokens[masked_index]
@@ -209,7 +213,8 @@ class CharacterMutation(_DescriptionMutation):
         for func in func_list:
             candidates = func(word)
             mutants.extend(candidates)
-
+        if len(mutants) == 0:
+            return word
         return random.choice(mutants)
 
 
@@ -242,7 +247,10 @@ class TokenMutation(_DescriptionMutation):
         if bert_masked_indexL:
             bert_new_sentences = self.perturbBert(tokens, bert_masked_indexL)
 
-        new_desc = random.choice(bert_new_sentences)
+        if len(bert_new_sentences) == 0:
+            new_desc = comments
+        else:
+            new_desc = random.choice(bert_new_sentences)
         return new_desc
 
     def perturbBert(self, tokens: List[str], masked_indexL: List):
@@ -251,7 +259,8 @@ class TokenMutation(_DescriptionMutation):
         new_sentences = list()
 
         for _ in range(10):
-            samples = random.sample(masked_indexL, self.num_of_perturb)
+            sampled_num = min(len(masked_indexL),  self.num_of_perturb)
+            samples = random.sample(masked_indexL, sampled_num)
             mask_indices = [k[0] for k in samples]
             low_tokens = [x.lower() for x in tokens]
             for masked_index in mask_indices:
