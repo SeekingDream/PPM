@@ -11,10 +11,11 @@ from rich.progress import (
 )
 
 from utils import get_human_eval_cleaned_doc, get_mbpp, get_humaneval_cs, get_humaneval_cpp, get_humaneval_java
-from src.methods.demo_mutate import constract_prompt
+from src.methods.demo_mutate import DemoMutation
+from src.methods.description_mute import CharacterMutation, TokenMutation
+
 
 import os
-
 
 
 def get_dataset(dataset):
@@ -30,7 +31,8 @@ def get_dataset(dataset):
         return get_humaneval_java()  # 传递相应的参数
     else:
         raise ValueError('Invalid param')
-    
+
+
 def code_generate(args, workdir: PathLike, model: DecoderBase):
     # 该函数的作用是生成代码。它接受三个参数：args（命令行参数）、workdir（工作目录的路径）和model（模型对象）。
 
@@ -53,23 +55,30 @@ def code_generate(args, workdir: PathLike, model: DecoderBase):
             n_existing = 0
 
             # 根据baseline构建prompt
-            if args.constract_prompt == "base":
+            if args.construct_prompt == "base":
                 prompt = task["prompt"]
-            elif args.constract_prompt == "add_demo":
-                methods = constract_prompt(task['prompt'], task['tests'], task['entry_point'])
+            elif args.construct_prompt == "add_demo":
+                methods = DemoMutation(task['prompt'], task['tests'], task['entry_point'])
                 prompt = methods.add_demo(task['language'])
-            elif args.constract_prompt == "del_demo":
-                methods = constract_prompt(task['prompt'], task['tests'], task['entry_point'])
+            elif args.construct_prompt == "del_demo":
+                methods = DemoMutation(task['prompt'], task['tests'], task['entry_point'])
                 prompt = methods.del_demo(task['language'])
-            elif args.constract_prompt == "rep_demo":
-                methods = constract_prompt(task['prompt'], task['tests'], task['entry_point'])
+            elif args.construct_prompt == "rep_demo":
+                methods = DemoMutation(task['prompt'], task['tests'], task['entry_point'])
                 prompt = methods.rep_demo(task['language'])
+            elif args.construct_prompt == "char_mutation":
+                methods = CharacterMutation(task['prompt'], task['tests'], task['entry_point'])
+                prompt = methods.mutate(task['language'])
+            elif args.construct_prompt == "token_mutation":
+                methods = TokenMutation(task['prompt'], task['tests'], task['entry_point'])
+                prompt = methods.mutate(task['language'])
+
 
             # 将prompt保存
             with open(os.path.join(workdir, task_id, "prompt.txt"), "w") as f:
                 f.write(str(prompt))
 
-            result = {'name': task['name'], 'language': task['language'], 'prompt': task['prompt'],'tests': task['tests'],'completions': [],"stop_tokens": task['stop_tokens']}
+            result = {'name': task['name'], 'language': task['language'], 'prompt': prompt,'tests': task['tests'],'completions': [],"stop_tokens": task['stop_tokens'],'tokens':[],'softmax':[]}
 
             if args.resume:
                 # count existing .py files
@@ -89,11 +98,13 @@ def code_generate(args, workdir: PathLike, model: DecoderBase):
             sidx = args.n_samples - nsamples
             while sidx < args.n_samples:
                 # stop_token(task['language'])
-                outputs = model.codegen(
+                outputs, tokens, logprobs = model.codegen(
                         prompt,
                     do_sample=not args.greedy,
                     num_samples=args.n_samples - sidx,
                 )
+                result['tokens'].append(tokens)
+                result['softmax'].append(logprobs)
                 for impl in outputs:
                     try:
                         with open(
@@ -119,10 +130,10 @@ def code_generate(args, workdir: PathLike, model: DecoderBase):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", required=True, type=str)
-    parser.add_argument("--bs", required=True, type=int)
-    parser.add_argument("--temperature", required=True, type=float)
-    parser.add_argument("--constract_prompt", required=True, type=str)
+    parser.add_argument("--model", default="incoder-1b", type=str)
+    parser.add_argument("--bs", default=10, type=int)
+    parser.add_argument("--temperature", default=0.7, type=float)
+    parser.add_argument("--construct_prompt", default="char_mutation", type=str)
     parser.add_argument("--dataset", default="humaneval", type=str)
     parser.add_argument("--root", default="./workdir/codegen", type=str)
     parser.add_argument("--n_samples", default=200, type=int)
@@ -142,10 +153,10 @@ def main():
 
     args = parser.parse_args()
 
-    if args.dataset not in ["humaneval","humaneval_cs","humaneval_cpp","humaneval_java"]:
+    if args.dataset not in ["humaneval","humaneval_cs","humaneval_cpp","humaneval_java","mbpp"]:
         raise NotImplementedError("Unsupported dataset: {}".format(args.dataset))
 
-    if args.constract_prompt not in ["base", "add_demo", "del_demo","rep_demo"]:
+    if args.construct_prompt not in ["base", "add_demo", "del_demo", "rep_demo", "char_mutation", "token_mutation"]:
         raise NotImplementedError(
             "Unsupported contract usage: {}".format(args.constract_prompt)
         )
@@ -171,7 +182,7 @@ def main():
     workdir = os.path.join(
         args.root,
         args.dataset,
-        args.constract_prompt,
+        args.construct_prompt,
         args.model
         + f"_temp_{args.temperature}"
         ,
