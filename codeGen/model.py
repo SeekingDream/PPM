@@ -32,6 +32,7 @@ import openai
 # Modified from https://github.com/lm-sys/FastChat/blob/main/fastchat/serve/huggingface_api.py
 import torch
 import torch.nn.functional as F
+# from codeGen.stop_tokens import EOS
 from fastchat.serve.inference import load_model
 from transformers import (
     AutoModelForCausalLM,
@@ -42,10 +43,12 @@ from transformers import (
 
 from evalplus.gen.util.api_request import create_chatgpt_config, request_chatgpt_engine
 
-HUMANEVAL_EOS = ["\nclass", "\ndef", "\n#", "\n@", "\nprint", "\nif"]
+# HUMANEVAL_EOS = ["\nclass", "\ndef", "\n#", "\n@", "\nprint", "\nif"]
+HUMANEVAL_EOS = ['\n    }\n']
 NON_CODE_EOS = ["<|endoftext|>", "\n```", "\n</s>", "<|endofmask|>"]
 EOS = HUMANEVAL_EOS + NON_CODE_EOS
-
+# dataset_EOS = []
+# EOS = []
 # def stop_token(language):
 #     global dataset_EOS
 #     global EOS
@@ -62,6 +65,22 @@ EOS = HUMANEVAL_EOS + NON_CODE_EOS
 #         raise ValueError(
 #             "language error"
 #         )
+def stop_token(dataset):
+    global dataset_EOS
+    global EOS
+    if dataset == 'humaneval' or 'mbpp':
+        dataset_EOS = ["\nclass", "\ndef", "\n#", "\n@", "\nprint", "\nif"]
+        EOS = dataset_EOS + NON_CODE_EOS
+    elif dataset == 'humaneval_cpp':
+        dataset_EOS = ["\n}"]
+        EOS = dataset_EOS + NON_CODE_EOS
+    elif dataset == 'humaneval_cs' or 'humaneval_java':
+        dataset_EOS = ['\n    }\n']
+        EOS = dataset_EOS + NON_CODE_EOS
+    else:
+        raise ValueError(
+            "dataset error"
+        )
 
 
 # Adopted from https://github.com/huggingface/transformers/pull/14897
@@ -422,8 +441,8 @@ class IncoderDecoder(HFTorchDecoder):
             gen_seqs, skip_special_tokens=self.skip_special_tokens
         )
         # ================================
-        tokens = []
         generated_tokens = raw_outputs.sequences[:, len(input_tokens[0]):].tolist()
+        tokens = []
         for token in generated_tokens:
             tokens.append([self.tokenizer.decode(each, skip_special_tokens=self.skip_special_tokens) for each in token])
         # ================================
