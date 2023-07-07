@@ -579,15 +579,39 @@ class SantaCoder(HFTorchDecoder):
             skip_special_tokens=self.skip_special_tokens,
             truncate_before_pattern=[r"\n\n^#", "^'''", "\n\n\n"],
         )
+        # =========================================================
+        generated_tokens = raw_outputs.sequences[:, len(input_tokens[0]):].tolist()
+        tokens = []
+        for token in generated_tokens:
+            tokens.append([self.tokenizer.decode(each, skip_special_tokens=self.skip_special_tokens) for each in token])
         outputs = []
         # removes eos tokens.
-        for output in gen_strs:
+        for i,output in enumerate(gen_strs):
             min_index = 10000
             for eos in self.eos:
                 if eos in output:
                     min_index = min(min_index, output.index(eos))
             outputs.append(output[:min_index])
-        return outputs
+            tokens[i]=tokens[i][:min_index]
+        softmax_output = F.log_softmax(torch.stack(raw_outputs['scores']).permute(1, 0, 2), dim=-1)
+        (batch, num_char, num_vocab) = softmax_output.shape
+        logprobs = []
+        for batch_i in range(batch):
+            logprobs.append([])
+            for char, token in zip(softmax_output[batch_i], generated_tokens[batch_i]):
+                # print(char[token])
+                logprobs[batch_i].append(char[token].item())
+        return outputs, tokens, logprobs
+        # =========================================================
+        # outputs = []
+        # # removes eos tokens.
+        # for output in gen_strs:
+        #     min_index = 10000
+        #     for eos in self.eos:
+        #         if eos in output:
+        #             min_index = min(min_index, output.index(eos))
+        #     outputs.append(output[:min_index])
+        # return outputs
 
 
 class StarCoder(HFTorchDecoder):
