@@ -33,7 +33,7 @@ class _DescriptionMutation(AbstractMethods):
     def mutate(self, language):
         func_entry, comments, demo = self.split_desc_testcases(language)
         assert self.combine_desc_testcases(language, func_entry, comments, demo) == self.prompt
-        if language == 'py':
+        if language == 'py' or 'cs':
             new_comments = self.mutate_py(comments)
         else:
             raise NotImplementedError
@@ -267,7 +267,10 @@ class TokenMutation(_DescriptionMutation):
                 low_tokens[masked_index] = '[MASK]'
             new_str = " ".join(low_tokens)
             unmask_str = self.unmasker(new_str)
-            filed_token = [d[0]['token_str'] for d in unmask_str]
+            try:
+                filed_token = [d[0]['token_str'] for d in unmask_str]
+            except:
+                filed_token = [d['token_str'] for d in unmask_str]
             for index, token in zip(mask_indices, filed_token):
                 tokens[index] = token
             new_sentence = " ".join(tokens)
