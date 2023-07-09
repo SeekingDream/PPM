@@ -2,7 +2,7 @@ import random
 from .abstract_method import AbstractMethods
 
 
-class constract_prompt(AbstractMethods):
+class DemoMutation(AbstractMethods):
     def __init__(self, prompt, test, entry_point):
         super().__init__(prompt, test, entry_point)
 
