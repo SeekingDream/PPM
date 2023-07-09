@@ -43,8 +43,8 @@ from transformers import (
 
 from evalplus.gen.util.api_request import create_chatgpt_config, request_chatgpt_engine
 
-# HUMANEVAL_EOS = ["\nclass", "\ndef", "\n#", "\n@", "\nprint", "\nif"]
-HUMANEVAL_EOS = ['\n    }\n']
+HUMANEVAL_EOS = ["\nclass", "\ndef", "\n#", "\n@", "\nprint", "\nif"]
+# HUMANEVAL_EOS = ['\n    }\n']
 NON_CODE_EOS = ["<|endoftext|>", "\n```", "\n</s>", "<|endofmask|>"]
 EOS = HUMANEVAL_EOS + NON_CODE_EOS
 # dataset_EOS = []
@@ -65,22 +65,22 @@ EOS = HUMANEVAL_EOS + NON_CODE_EOS
 #         raise ValueError(
 #             "language error"
 #         )
-def stop_token(dataset):
-    global dataset_EOS
-    global EOS
-    if dataset == 'humaneval' or 'mbpp':
-        dataset_EOS = ["\nclass", "\ndef", "\n#", "\n@", "\nprint", "\nif"]
-        EOS = dataset_EOS + NON_CODE_EOS
-    elif dataset == 'humaneval_cpp':
-        dataset_EOS = ["\n}"]
-        EOS = dataset_EOS + NON_CODE_EOS
-    elif dataset == 'humaneval_cs' or 'humaneval_java':
-        dataset_EOS = ['\n    }\n']
-        EOS = dataset_EOS + NON_CODE_EOS
-    else:
-        raise ValueError(
-            "dataset error"
-        )
+# def stop_token(dataset):
+#     global dataset_EOS
+#     global EOS
+#     if dataset == 'humaneval' or 'mbpp':
+#         dataset_EOS = ["\nclass", "\ndef", "\n#", "\n@", "\nprint", "\nif"]
+#         EOS = dataset_EOS + NON_CODE_EOS
+#     elif dataset == 'humaneval_cpp':
+#         dataset_EOS = ["\n}"]
+#         EOS = dataset_EOS + NON_CODE_EOS
+#     elif dataset == 'humaneval_cs' or 'humaneval_java':
+#         dataset_EOS = ['\n    }\n']
+#         EOS = dataset_EOS + NON_CODE_EOS
+#     else:
+#         raise ValueError(
+#             "dataset error"
+#         )
 
 
 # Adopted from https://github.com/huggingface/transformers/pull/14897
@@ -411,7 +411,7 @@ class IncoderDecoder(HFTorchDecoder):
         self.eos = self.eos + self.extra_eos
 
     def codegen(
-        self, prompt: str, do_sample: bool = True, num_samples: int = 200
+        self, prompt: str, do_sample: bool = True, num_samples: int = 200,
     ) -> List[str]:
         input = prompt + self.infill_ph + self.extra_end
         input_tokens = self.tokenizer.encode(input, return_tensors="pt").to(self.device)
@@ -459,13 +459,15 @@ class IncoderDecoder(HFTorchDecoder):
         # print(torch.stack(raw_outputs['scores']).shape)
         # print(torch.stack(raw_outputs['scores']).squeeze(dim=1).shape)
         softmax_output = F.log_softmax(torch.stack(raw_outputs['scores']).squeeze(dim=1), dim=-1)
-        (num_char, num_vocab) = softmax_output.shape
+        (batch, num_char, num_vocab) = softmax_output.shape
         logprobs = []
         # print(softmax_output[0])
         # print(generated_tokens[0])
-        for char, token in zip(softmax_output, generated_tokens[0]):
-            # print(char[token])
-            logprobs.append(char[token].item())
+        for batch_i in range(batch):
+            logprobs.append([])
+            for char, token in zip(softmax_output[batch_i], generated_tokens[batch_i]):
+                # print(char[token])
+                logprobs[batch_i].append(char[token].item())
         # print(logprobs)
         # print(softmax_output.shape)
         # print(len(tokens[0]))
