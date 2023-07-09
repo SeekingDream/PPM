@@ -18,6 +18,8 @@ human_eval_cs = './workdir/Dataset/humaneval-cs-transform.json'
 human_eval_cpp = './workdir/Dataset/humaneval-cpp-transform.json'
 human_eval_java = './workdir/Dataset/humaneval-java-transform.json'
 mbpp_dir = './workdir/Dataset/mbpp-py-reworded.json'
+
+
 def get_human_eval() -> Dict[str, Dict]:
     """Get HumanEval from OpenAI's github repo and return as a list of parsed dicts.
 
@@ -64,6 +66,7 @@ def get_human_eval() -> Dict[str, Dict]:
 
     return {task["task_id"]: task for task in human_eval}
 
+
 def get_human_eval_cleaned_doc() -> Dict[str, Dict]:
     with open(human_eval_cleaned_doc, 'r') as f:
         data = json.load(f)
@@ -76,6 +79,7 @@ def get_human_eval_cleaned_doc() -> Dict[str, Dict]:
 
     return {task["task_id"]: task for task in data}
 
+
 def get_mbpp() -> Dict[str, Dict]:
     with open(mbpp_dir, 'r') as f:
         data = json.load(f)
@@ -87,6 +91,7 @@ def get_mbpp() -> Dict[str, Dict]:
         task['entry_point'] = name[pos + 1:]
 
     return {task["task_id"]: task for task in data}
+
 
 def get_humaneval_cs() -> Dict[str, Dict]:
     with open(human_eval_cs, 'r') as f:
@@ -123,3 +128,18 @@ def get_humaneval_java() -> Dict[str, Dict]:
         task['entry_point'] = name[pos + 1:]
 
     return {task["task_id"]: task for task in data}
+
+
+def get_dataset(dataset):
+    if dataset == 'humaneval':
+        return get_human_eval_cleaned_doc()  # 传递相应的参数
+    elif dataset == 'mbpp':
+        return get_mbpp()  # 传递相应的参数
+    elif dataset == 'humaneval_cs':
+        return get_humaneval_cs()  # 传递相应的参数
+    elif dataset == 'humaneval_cpp':
+        return get_humaneval_cpp()  # 传递相应的参数
+    elif dataset == 'humaneval_java':
+        return get_humaneval_java()  # 传递相应的参数
+    else:
+        raise ValueError('Invalid param')
