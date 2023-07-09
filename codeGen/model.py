@@ -411,9 +411,9 @@ class IncoderDecoder(HFTorchDecoder):
         self.eos = self.eos + self.extra_eos
 
     def codegen(
-        self, prompt: str, do_sample: bool = True, num_samples: int = 200,
+        self, prompt: str, do_sample: bool = True, temperature=0.4, max_tokens=512, top_p=1.0, stop=[], num_samples: int = 1
     ) -> List[str]:
-        input = prompt + self.infill_ph + self.extra_end
+        input = prompt# + self.infill_ph + self.extra_end
         input_tokens = self.tokenizer.encode(input, return_tensors="pt").to(self.device)
         scores = StoppingCriteriaList(
             [
@@ -424,14 +424,16 @@ class IncoderDecoder(HFTorchDecoder):
                 )
             ]
         )
+        # print(scores)
         raw_outputs = self.model.generate(
             input_tokens,
-            max_new_tokens=self.max_new_tokens,
+            max_new_tokens=max_tokens,
             stopping_criteria=scores,
             do_sample=do_sample,
-            top_p=0.95,
+            top_p=top_p,
             top_k=None,
-            temperature=self.temperature,
+            temperature=temperature,
+            # stop=stop,
             num_return_sequences=min(self.batch_size, num_samples),
             output_scores=True,
             return_dict_in_generate=True,
@@ -440,12 +442,18 @@ class IncoderDecoder(HFTorchDecoder):
         gen_strs = self.tokenizer.batch_decode(
             gen_seqs, skip_special_tokens=self.skip_special_tokens
         )
-        # ================================
-        generated_tokens = raw_outputs.sequences[:, len(input_tokens[0]):].tolist()
+        generated_tokens = raw_outputs.sequences[:, len(input_tokens[0]) :].tolist()
+        # generated_tokens=generated_tokens[0]
+        # print(generated_tokens)
+        # generated_text = [self.tokenizer.decode(token, skip_special_tokens=self.skip_special_tokens) for token in generated_tokens]
+        # print(generated_text)
+        # print(gen_seqs)
+        # print("==========strs=========")
+        # print(gen_strs)
+        # print(len(gen_strs))
         tokens = []
         for token in generated_tokens:
             tokens.append([self.tokenizer.decode(each, skip_special_tokens=self.skip_special_tokens) for each in token])
-        # ================================
         outputs = []
         # removes eos tokens.
         for i,output in enumerate(gen_strs):
@@ -459,29 +467,17 @@ class IncoderDecoder(HFTorchDecoder):
         # print(torch.stack(raw_outputs['scores']).shape)
         # print(torch.stack(raw_outputs['scores']).squeeze(dim=1).shape)
         softmax_output = F.log_softmax(torch.stack(raw_outputs['scores']).squeeze(dim=1), dim=-1)
-        (batch, num_char, num_vocab) = softmax_output.shape
+        (num_char, num_vocab) = softmax_output.shape
         logprobs = []
         # print(softmax_output[0])
         # print(generated_tokens[0])
-        for batch_i in range(batch):
-            logprobs.append([])
-            for char, token in zip(softmax_output[batch_i], generated_tokens[batch_i]):
-                # print(char[token])
-                logprobs[batch_i].append(char[token].item())
+        for char, token in zip(softmax_output, generated_tokens[0]):
+            # print(char[token])
+            logprobs.append(char[token].item())
         # print(logprobs)
         # print(softmax_output.shape)
         # print(len(tokens[0]))
         return outputs, tokens, logprobs
-
-        # outputs = []
-        # # removes eos tokens.
-        # for output in gen_strs:
-        #     min_index = 10000
-        #     for eos in self.eos:
-        #         if eos in output:
-        #             min_index = min(min_index, output.index(eos))
-        #     outputs.append(output[:min_index])
-        # return outputs
 
 
 class Codegen2Decoder(HFTorchDecoder):
