@@ -43,8 +43,8 @@ from transformers import (
 
 from evalplus.gen.util.api_request import create_chatgpt_config, request_chatgpt_engine
 
-HUMANEVAL_EOS = ["\nclass", "\ndef", "\n#", "\n@", "\nprint", "\nif"]
-# HUMANEVAL_EOS = ['\n    }\n']
+# HUMANEVAL_EOS = ["\nclass", "\ndef", "\n#", "\n@", "\nprint", "\nif"]
+HUMANEVAL_EOS = ['\n    }\n']
 NON_CODE_EOS = ["<|endoftext|>", "\n```", "\n</s>", "<|endofmask|>"]
 EOS = HUMANEVAL_EOS + NON_CODE_EOS
 # dataset_EOS = []
