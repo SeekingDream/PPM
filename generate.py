@@ -133,7 +133,7 @@ def main():
     parser.add_argument("--model", default="incoder-1b", type=str)
     parser.add_argument("--bs", default=10, type=int)
     parser.add_argument("--temperature", default=0.7, type=float)
-    parser.add_argument("--construct_prompt", default="char_mutation", type=str)
+    parser.add_argument("--construct_prompt", default="token_mutation", type=str)
     parser.add_argument("--dataset", default="humaneval", type=str)
     parser.add_argument("--root", default="./workdir/codegen", type=str)
     parser.add_argument("--n_samples", default=200, type=int)
