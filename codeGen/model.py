@@ -411,9 +411,9 @@ class IncoderDecoder(HFTorchDecoder):
         self.eos = self.eos + self.extra_eos
 
     def codegen(
-        self, prompt: str, do_sample: bool = True, temperature=0.4, max_tokens=512, top_p=1.0, stop=[], num_samples: int = 1
+        self, prompt: str, do_sample: bool = True, num_samples: int = 200,
     ) -> List[str]:
-        input = prompt# + self.infill_ph + self.extra_end
+        input = prompt + self.infill_ph + self.extra_end
         input_tokens = self.tokenizer.encode(input, return_tensors="pt").to(self.device)
         scores = StoppingCriteriaList(
             [
@@ -424,16 +424,14 @@ class IncoderDecoder(HFTorchDecoder):
                 )
             ]
         )
-        # print(scores)
         raw_outputs = self.model.generate(
             input_tokens,
-            max_new_tokens=max_tokens,
+            max_new_tokens=self.max_new_tokens,
             stopping_criteria=scores,
             do_sample=do_sample,
-            top_p=top_p,
+            top_p=0.95,
             top_k=None,
-            temperature=temperature,
-            # stop=stop,
+            temperature=self.temperature,
             num_return_sequences=min(self.batch_size, num_samples),
             output_scores=True,
             return_dict_in_generate=True,
