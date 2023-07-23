@@ -1,4 +1,3 @@
-
 class AbstractMethods:
     def __init__(self, prompt, test, entry_point):
         self.prompt = prompt
