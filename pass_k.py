@@ -24,6 +24,8 @@ def for_file(path):
         return None
     n = len(data["results"])
     c = len([True for r in data["results"] if r["status"] == "OK" and r["exit_code"] == 0])
+   # n = 100
+   # c = len([True for r in data["results"][:100] if r["status"] == "OK" and r["exit_code"] == 0])
     return {
         "pass@1": estimator(n, c, 1),
         "pass@10": estimator(n, c, 10),
@@ -35,7 +37,8 @@ def for_file(path):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dir", type=str, help="The directory of the eval_results file ")
+    parser.add_argument("--dir", type=str, default="evaluation/src/codeEval/humaneval/add_demo/codegen-2b_temp_0.7",
+                        help="The directory of the eval_results file ")
     args = parser.parse_args()
 
     results = []
@@ -62,6 +65,8 @@ def main():
         print(f"pass@1 : {pass_1}")
         print(f"pass@10 : {pass_10}")
     else:
+        print(f"pass@1 : {pass_1}")
+        print(f"pass@10 : {pass_10}")
         print(f"pass@100 : {pass_100}")
 
 
