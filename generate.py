@@ -13,7 +13,7 @@ from rich.progress import (
 from utils import get_human_eval_cleaned_doc, get_mbpp, get_humaneval_cs, get_humaneval_cpp, get_humaneval_java
 from src.methods.demo_mutate import DemoMutation
 from src.methods.description_mute import CharacterMutation, TokenMutation
-
+from src.methods.semantic_mute import OutputTypeMutation
 
 import os
 
@@ -38,13 +38,13 @@ def code_generate(args, workdir: PathLike, model: DecoderBase):
 
     # 显示进度条和时间
     with Progress(
-        TextColumn(
-            f"{args.dataset} •" + "[progress.percentage]{task.percentage:>3.0f}%"
-        ),
-        BarColumn(),
-        MofNCompleteColumn(),
-        TextColumn("•"),
-        TimeElapsedColumn(),
+            TextColumn(
+                f"{args.dataset} •" + "[progress.percentage]{task.percentage:>3.0f}%"
+            ),
+            BarColumn(),
+            MofNCompleteColumn(),
+            TextColumn("•"),
+            TimeElapsedColumn(),
     ) as p:
         for task_id, task in p.track(get_dataset(args.dataset).items()):
             # 任务id中的"/“替换成了”_"
@@ -73,12 +73,34 @@ def code_generate(args, workdir: PathLike, model: DecoderBase):
                 methods = TokenMutation(task['prompt'], task['tests'], task['entry_point'])
                 prompt = methods.mutate(task['language'])
 
+            elif args.construct_prompt == 'output_mutation':
+                methods = OutputTypeMutation(task['prompt'], task['tests'], task['entry_point'])
+                is_success, new_prompt, new_test, src_type, tgt_type, op = methods.mutate(task['language'])
+                prompt = new_prompt
+                if is_success == False:
+                    continue
+                #print(new_prompt)
+
+                #task['prompt'] = new_prompt
+                task['tests'] = new_test
+            elif args.construct_prompt == 'output_v_mutation':
+                methods = OutputTypeMutation(task['prompt'], task['tests'], task['entry_point'])
+                is_success, new_prompt, new_test, src_type, tgt_type, op = methods.mutate(task['language'])
+                prompt = new_prompt
+                if is_success == False:
+                    continue
+                task['tests'] = new_test
 
             # 将prompt保存
             with open(os.path.join(workdir, task_id, "prompt.txt"), "w") as f:
                 f.write(str(prompt))
 
-            result = {'name': task['name'], 'language': task['language'], 'prompt': prompt,'tests': task['tests'],'completions': [],"stop_tokens": task['stop_tokens'],'tokens':[],'softmax':[]}
+            if args.construct_prompt in ['output_mutation','output_v_mutation']: 
+                result = {'name': task['name'], 'language': task['language'], 'prompt': prompt, 'tests': task['tests'],
+                    'completions': [], "stop_tokens": task['stop_tokens'], 'tokens': [], 'softmax': [],'is_sucess':is_success,"src_type":src_type,"tgt_type":tgt_type}
+            else:
+                result = {'name': task['name'], 'language': task['language'], 'prompt': prompt, 'tests': task['tests'],
+                        'completions': [], "stop_tokens": task['stop_tokens'], 'tokens': [], 'softmax': []}
 
             if args.resume:
                 # count existing .py files
@@ -99,7 +121,7 @@ def code_generate(args, workdir: PathLike, model: DecoderBase):
             while sidx < args.n_samples:
                 # stop_token(task['language'])
                 outputs, tokens, logprobs = model.codegen(
-                        prompt,
+                    prompt,
                     do_sample=not args.greedy,
                     num_samples=args.n_samples - sidx,
                 )
@@ -108,9 +130,9 @@ def code_generate(args, workdir: PathLike, model: DecoderBase):
                 for impl in outputs:
                     try:
                         with open(
-                            os.path.join(workdir, task_id, f"{sidx}.{task['language']}"),
-                            "w",
-                            encoding="utf-8",
+                                os.path.join(workdir, task_id, f"{sidx}.{task['language']}"),
+                                "w",
+                                encoding="utf-8",
                         ) as f:
                             if args.model in {"chatgpt", "gpt-4"}:
                                 f.write(impl)
@@ -120,12 +142,14 @@ def code_generate(args, workdir: PathLike, model: DecoderBase):
                     except UnicodeEncodeError:
                         continue
                     sidx += 1
-            with open(
-                    os.path.join(workdir, task_id, f"{task_id}.json"),
-                    "w",
-                    encoding="utf-8",
-            ) as f:
-                json.dump(result, f)
+            jsonpath = os.path.join(workdir, task_id, f"{task_id}.json")
+            if not os.path.exists(jsonpath):
+                with open(
+                        jsonpath,
+                        "w",
+                        encoding="utf-8",
+                ) as f:
+                    json.dump(result, f)
 
 
 def main():
@@ -153,10 +177,10 @@ def main():
 
     args = parser.parse_args()
 
-    if args.dataset not in ["humaneval","humaneval_cs","humaneval_cpp","humaneval_java","mbpp"]:
+    if args.dataset not in ["humaneval", "humaneval_cs", "humaneval_cpp", "humaneval_java", "mbpp"]:
         raise NotImplementedError("Unsupported dataset: {}".format(args.dataset))
 
-    if args.construct_prompt not in ["base", "add_demo", "del_demo", "rep_demo", "char_mutation", "token_mutation"]:
+    if args.construct_prompt not in ["base", "add_demo", "del_demo", "rep_demo", "char_mutation", "token_mutation","output_mutation","output_v_mutation"]:
         raise NotImplementedError(
             "Unsupported contract usage: {}".format(args.constract_prompt)
         )
