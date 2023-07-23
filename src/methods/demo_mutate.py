@@ -122,7 +122,7 @@ class DemoMutation(AbstractMethods):
             if assert_statements:
                 random_statement = random.choice(assert_statements)
                 rep_test = '>>> ' + self.entry_point + random_statement
-                rep_test = rep_test.replace(' == ', "\n\t")
+                rep_test = rep_test.replace(' == ', "\n    ")
                 new_prompt = prompt.replace(org_test, rep_test)
                 return new_prompt
             else:
