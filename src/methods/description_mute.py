@@ -6,7 +6,6 @@ import nltk
 from transformers import BertTokenizer, pipeline
 from nltk.tokenize.treebank import TreebankWordTokenizer, TreebankWordDetokenizer
 from typing import List
-
 from .abstract_method import AbstractMethods
 
 
