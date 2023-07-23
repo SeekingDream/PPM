@@ -43,8 +43,8 @@ from transformers import (
 
 from evalplus.gen.util.api_request import create_chatgpt_config, request_chatgpt_engine
 
-# HUMANEVAL_EOS = ["\nclass", "\ndef", "\n#", "\n@", "\nprint", "\nif"]
-HUMANEVAL_EOS = ['\n    }\n']
+HUMANEVAL_EOS = ["\nclass", "\ndef", "\n#", "\n@", "\nprint", "\nif"]
+#HUMANEVAL_EOS = ['\n    }\n']
 NON_CODE_EOS = ["<|endoftext|>", "\n```", "\n</s>", "<|endofmask|>"]
 EOS = HUMANEVAL_EOS + NON_CODE_EOS
 # dataset_EOS = []
@@ -214,7 +214,10 @@ class HFTorchDecoder(DecoderBase):
                 # kwargs["load_in_8bit"] = True
         if "starcoder" in name:
             kwargs["torch_dtype"] = torch.bfloat16
-
+        if "gpt-j" in name:
+            kwargs["torch_dtype"] = torch.float16
+        if "incoder-6B" in name:
+            kwargs["torch_dtype"] = torch.float16
         self.tokenizer = AutoTokenizer.from_pretrained(name)
         self.model = AutoModelForCausalLM.from_pretrained(name, **kwargs)
         if name in {"StabilityAI/stablelm-base-alpha-7b"}:
@@ -521,15 +524,39 @@ class Codegen2Decoder(HFTorchDecoder):
         gen_strs = self.tokenizer.batch_decode(
             gen_seqs, skip_special_tokens=self.skip_special_tokens
         )
+
+        # ===========================
+        generated_tokens = raw_outputs.sequences[:, len(input_tokens[0]):].tolist()
+        tokens = []
+        for token in generated_tokens:
+            tokens.append([self.tokenizer.decode(each, skip_special_tokens=self.skip_special_tokens) for each in token])
         outputs = []
         # removes eos tokens.
-        for output in gen_strs:
+        for i,output in enumerate(gen_strs):
             min_index = 10000
             for eos in self.eos:
                 if eos in output:
                     min_index = min(min_index, output.index(eos))
             outputs.append(output[:min_index])
-        return outputs
+            tokens[i]=tokens[i][:min_index]
+        softmax_output = F.log_softmax(torch.stack(raw_outputs['scores']).permute(1, 0, 2), dim=-1)
+        (batch, num_char, num_vocab) = softmax_output.shape
+        logprobs = []
+        for batch_i in range(batch):
+            logprobs.append([])
+            for char, token in zip(softmax_output[batch_i], generated_tokens[batch_i]):
+                logprobs[batch_i].append(char[token].item())
+        return outputs, tokens, logprobs
+
+        #outputs = []
+        # removes eos tokens.
+        #for output in gen_strs:
+        #    min_index = 10000
+        #    for eos in self.eos:
+        #        if eos in output:
+        #            min_index = min(min_index, output.index(eos))
+        #    outputs.append(output[:min_index])
+        #return outputs
 
 
 class SantaCoder(HFTorchDecoder):
@@ -687,24 +714,24 @@ def make_model(name: str, batch_size: int = 1, temperature: float = 0.8):
         return OpenAIDecoder(
             batch_size=batch_size, name="codegen-16b", temperature=temperature
         )
-    # elif name == "codegen2-1b":
-    #     return Codegen2Decoder(
-    #         batch_size=batch_size,
-    #         name="Salesforce/codegen2-1B",
-    #         temperature=temperature,
-    #     )
-    # elif name == "codegen2-3b":
-    #     return Codegen2Decoder(
-    #         batch_size=batch_size,
-    #         name="Salesforce/codegen2-3_7B",
-    #         temperature=temperature,
-    #     )
-    # elif name == "codegen2-7b":
-    #     return Codegen2Decoder(
-    #         batch_size=batch_size,
-    #         name="Salesforce/codegen2-7B",
-    #         temperature=temperature,
-    #     )
+    elif name == "codegen2-1b":
+        return Codegen2Decoder(
+            batch_size=batch_size,
+            name="Salesforce/codegen2-1B",
+            temperature=temperature,
+        )
+    elif name == "codegen2-3b":
+        return Codegen2Decoder(
+            batch_size=batch_size,
+            name="Salesforce/codegen2-3_7B",
+            temperature=temperature,
+        )
+    elif name == "codegen2-7b":
+        return Codegen2Decoder(
+            batch_size=batch_size,
+            name="Salesforce/codegen2-7B",
+            temperature=temperature,
+        )
     elif name == "codegen2-16b":
         warn(
             "codegen2-16b checkpoint is `unfinished` at this point (05/11/2023) according to their paper. "
