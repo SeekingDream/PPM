@@ -13,7 +13,9 @@ from rich.progress import (
 from utils import get_human_eval_cleaned_doc, get_mbpp, get_humaneval_cs, get_humaneval_cpp, get_humaneval_java
 from src.methods.demo_mutate import DemoMutation
 from src.methods.description_mute import CharacterMutation, TokenMutation
-from src.methods.semantic_mute import OutputTypeMutation
+from src.methods.semantic_mute import OutputTypeMutation,OutputValueMutation
+from src.methods.func_name import FuncNameMutation
+from src.methods.sytanx_mute import CommentMutation, InsertLineMutation
 
 import os
 
@@ -84,12 +86,23 @@ def code_generate(args, workdir: PathLike, model: DecoderBase):
                 #task['prompt'] = new_prompt
                 task['tests'] = new_test
             elif args.construct_prompt == 'output_v_mutation':
-                methods = OutputTypeMutation(task['prompt'], task['tests'], task['entry_point'])
+                methods = OutputValueMutation(task['prompt'], task['tests'], task['entry_point'])
                 is_success, new_prompt, new_test, src_type, tgt_type, op = methods.mutate(task['language'])
                 prompt = new_prompt
                 if is_success == False:
                     continue
                 task['tests'] = new_test
+
+            elif args.construct_prompt == "func_name":
+                methods = FuncNameMutation(task['prompt'], task['tests'], task['entry_point'])
+                prompt, entry_point,new_test = methods.mutate(task['language'])
+                task['tests'] = new_test
+            elif args.construct_prompt == 'insert_line':
+                methods = InsertLineMutation(task['prompt'], task['tests'], task['entry_point'])
+                prompt = methods.mutate(task['language'])
+            elif args.construct_prompt == 'comment':
+                methods = CommentMutation(task['prompt'], task['tests'], task['entry_point'])
+                prompt = methods.mutate(task['language'])
 
             # 将prompt保存
             with open(os.path.join(workdir, task_id, "prompt.txt"), "w") as f:
@@ -120,13 +133,20 @@ def code_generate(args, workdir: PathLike, model: DecoderBase):
             sidx = args.n_samples - nsamples
             while sidx < args.n_samples:
                 # stop_token(task['language'])
-                outputs, tokens, logprobs = model.codegen(
-                    prompt,
-                    do_sample=not args.greedy,
-                    num_samples=args.n_samples - sidx,
-                )
-                result['tokens'].append(tokens)
-                result['softmax'].append(logprobs)
+                if(args.model == "chatgpt"):
+                    outputs = model.codegen(
+                        prompt,
+                        do_sample=not args.greedy,
+                        num_samples=args.n_samples - sidx,
+                    )
+                else:
+                    outputs, tokens, logprobs = model.codegen(
+                        prompt,
+                        do_sample=not args.greedy,
+                        num_samples=args.n_samples - sidx,
+                    )
+                    result['tokens'].append(tokens)
+                    result['softmax'].append(logprobs)
                 for impl in outputs:
                     try:
                         with open(
@@ -135,7 +155,8 @@ def code_generate(args, workdir: PathLike, model: DecoderBase):
                                 encoding="utf-8",
                         ) as f:
                             if args.model in {"chatgpt", "gpt-4"}:
-                                f.write(impl)
+                                f.write(impl + '\n' + task['tests'])
+                                result['completions'].append(impl)
                             else:
                                 f.write(prompt + impl + task['tests'])
                                 result['completions'].append(impl)
@@ -160,9 +181,10 @@ def main():
     parser.add_argument("--construct_prompt", default="token_mutation", type=str)
     parser.add_argument("--dataset", default="humaneval", type=str)
     parser.add_argument("--root", default="./workdir/codegen", type=str)
-    parser.add_argument("--n_samples", default=200, type=int)
+    parser.add_argument("--n_samples", default=100, type=int)
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--greedy", action="store_true")
+    parser.add_argument("--repeat_num", default=0, type=int)
     # "--resume"
     # 如果设置了这个参数，则会从中断的任务处恢复，否则就从头开始执行任务。
     # 如果命令行中使用了"–resume"参数，Python程序将接收到一个名为"resume"的True值。如果未使用该参数，则变量"resume"的值将为False。
@@ -180,9 +202,9 @@ def main():
     if args.dataset not in ["humaneval", "humaneval_cs", "humaneval_cpp", "humaneval_java", "mbpp"]:
         raise NotImplementedError("Unsupported dataset: {}".format(args.dataset))
 
-    if args.construct_prompt not in ["base", "add_demo", "del_demo", "rep_demo", "char_mutation", "token_mutation","output_mutation","output_v_mutation"]:
+    if args.construct_prompt not in ["base", "add_demo", "del_demo", "rep_demo", "char_mutation", "token_mutation","output_mutation","output_v_mutation","func_name","insert_line","comment"]:
         raise NotImplementedError(
-            "Unsupported contract usage: {}".format(args.constract_prompt)
+            "Unsupported contract usage: {}".format(args.construct_prompt)
         )
 
     # 当args.greedy为True时，代码中只允许使用temperature=0、batch_size=1和n_samples=1。
@@ -203,14 +225,25 @@ def main():
     model = make_model(
         name=args.model, batch_size=args.bs, temperature=args.temperature
     )
-    workdir = os.path.join(
-        args.root,
-        args.dataset,
-        args.construct_prompt,
-        args.model
-        + f"_temp_{args.temperature}"
-        ,
-    )
+    if args.repeat_num == 0:
+        workdir = os.path.join(
+            args.root,
+            args.dataset,
+            args.construct_prompt,
+            args.model
+            + f"_temp_{args.temperature}"
+            ,
+        )
+    else:
+        workdir = os.path.join(
+            args.root,
+            args.dataset,
+            args.construct_prompt,
+            args.model
+            + f"_temp_{args.temperature}"
+            + f"_repeat_{args.repeat_num}"
+            ,
+        )
     os.makedirs(workdir, exist_ok=True)
 
     with open(os.path.join(workdir, "args.txt"), "w") as f:
