@@ -11,7 +11,7 @@ This code repository includes the main implementation of Programming Problem Mer
 
 # Design Overview
 <div  align="center">    
- <img src="https://github.com/anonymousGithub2022/PPM/blob/main/fig/PPM-overview.jpg" width="680" height="230" alt="Design Overview"/><br/>
+ <img src="https://github.com/Cap-Ning/PPM/blob/master/fig/PPM-overview.jpg" width="680" height="230" alt="Design Overview"/><br/>
 </div>   
 
 The figure above illustrates the design overview of PPM, encompassing three primary steps for generating a new programming problem. PPM's input is an existing programming problem, consisting of a natural language prompt, a corresponding implementation, and some test inputs. During the initial step, PPM analyzes the return value types of the given problem by executing the implementation on the provided test inputs. Subsequently, PPM selects a lambda programming task based on these return value types. Finally, PPM concatenates the existing problem with the lambda programming task to craft a new problem.
