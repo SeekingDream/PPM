@@ -1,4 +1,4 @@
-# `PPM📖`
+# `📖PPM`
 <p align="center">
  <a href=""><img src="https://img.shields.io/badge/Paper-FSE'24-blue.svg"></a>
   <a href="https://github.com/anonymousGithub2022/main/LICENSE"><img src="https://img.shields.io/pypi/pyversions/tvm"></a>
@@ -58,7 +58,7 @@ During the benchmarking stage, PPM feeds the newly created prompt to the code mo
  {"base", "add_demo", "del_demo", "rep_demo", "char_mutation", "token_mutation", "func_name", "insert_line", "comment", "output_v_mutation", "output_mutation"}
 
 
- # PPM Problem Examples
+ # 💡PPM Problem Examples
 
 ## The Seed Problem and Generated Code of CodeGen
 
@@ -106,3 +106,9 @@ def find_Max_Num(arr: List[int]) -> int:
 The above three examples illustrate the prompt alongside the corresponding generated code from CodeGen-2B. The first example pertains to the seed programming problem, while the second and third examples relate to PPM. The results highlight that the model successfully generates accurate code for the seed problem. However, in the case of PPM, the model encounters difficulties. Intriguingly, with PPM-V, the model demonstrates an apt understanding of the associated lambda problem, as evidenced by the generated comments. Yet, when faced with the amalgamation of these two problems, the model becomes confounded by the original problem, resulting in incorrect final outputs. Another noteworthy observation is found in PPM-T, where the model comprehends the "increase each value by 3" instructions. Nevertheless, the model struggles to provide correct solutions for the seed component within the merged problem. These findings substantiate our hypothesis that the merging of programming problems can elevate complexity and pose challenges for Language Code Generation Models (LCGMs).
 
 More examples of each methods prompt and corresonding generated code snippet could be found in [here](https://github.com/Cap-Ning/PPM/blob/master/examples.txt)
+# 📜 Citation
+
+```bibtex
+\TODO
+
+```
