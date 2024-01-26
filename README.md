@@ -30,8 +30,8 @@ During the benchmarking stage, PPM feeds the newly created prompt to the code mo
 + codeGen/model.py
      + semantic_mute.py     This file includes the implementation of our proposed programming problem merging methods.
 + ML/model.py               This file implements the infrastructure of loading large code model for inference.
-+ evaluation                This directory inmplements the  infrastructure of executing the generated code and collect the execution outputs.
-+ final_res                 This directory stores the results of our experiments.
++ evaluation/                This directory inmplements the  infrastructure of executing the generated code and collect the execution outputs.
++ final_res/                 This directory stores the results of our experiments.
 + generate.py               This file is used to generate program code from a code model.
 + generate_prompt.py        This file is used to generate prompt for each methods.
 + lambda_problem.py         This file is used to test the accuracy of oiur propsoed lambda problems.
