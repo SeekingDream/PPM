@@ -1,4 +1,4 @@
-# `📖PPM`
+# `📖 PPM`
 <p align="center">
  <a href=""><img src="https://img.shields.io/badge/Paper-FSE'24-blue.svg"></a>
   <a href="https://github.com/anonymousGithub2022/main/LICENSE"><img src="https://img.shields.io/pypi/pyversions/tvm"></a>
@@ -58,7 +58,7 @@ During the benchmarking stage, PPM feeds the newly created prompt to the code mo
  {"base", "add_demo", "del_demo", "rep_demo", "char_mutation", "token_mutation", "func_name", "insert_line", "comment", "output_v_mutation", "output_mutation"}
 
 
- # 💡PPM Problem Examples
+ # 💡 PPM Problem Examples
 
 ## The Seed Problem and Generated Code of CodeGen
 
