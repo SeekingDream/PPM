@@ -12,7 +12,7 @@
 This code repository includes the main implementation of Programming Problem Merging, which can generate new programming problems to benchmark the programming capability of code generation models.
 
 
-# Design Overview
+## Design Overview
 <div  align="center">    
  <img src="https://github.com/Cap-Ning/PPM/blob/master/fig/PPM-overview.jpg" width="680" height="230" alt="Design Overview"/><br/>
 </div>   
@@ -22,7 +22,7 @@ The figure above illustrates the design overview of PPM, encompassing three prim
 During the benchmarking stage, PPM feeds the newly created prompt to the code model and retrieves the generated program code. The generated code is then executed on the test inputs, and the resulting outputs are compared against the outputs from the new implementation.
 
 
-# File Structure
+## File Structure
 + src/methods               This directory includes the implementation of different methods to generate programming problems.
      + utils.py             This file implemenents some basic common functions.
      + abstract_methods.py  Implements the abstract class for each method, and the abstract class includes some common functions.
@@ -43,7 +43,7 @@ During the benchmarking stage, PPM feeds the newly created prompt to the code mo
 + diversity.py              This file is used to evaluate the diversity of the programming problems from each methods.
     
  
-# How to Run
+## How to Run
  ``python generate.py --model incoder-1b --construct_prompt token_mutation --dataset humaneval --n_samples 100``
 
 + `model`: the large code model for inference.
