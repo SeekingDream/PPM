@@ -109,6 +109,15 @@ More examples of each methods prompt and corresonding generated code snippet cou
 # 📜 Citation
 
 ```bibtex
-\TODO
+@article{chen2024ppm,
+  title={PPM: Automated Generation of Diverse Programming Problems for Benchmarking Code Generation Models},
+  author={Chen, Simin and Feng, Xiaoning and Han, Xiaohong and Liu, Cong and Yang, Wei},
+  journal={Proceedings of the ACM on Software Engineering},
+  volume={1},
+  number={FSE},
+  pages={1194--1215},
+  year={2024},
+  publisher={ACM New York, NY, USA}
+}
 
 ```
