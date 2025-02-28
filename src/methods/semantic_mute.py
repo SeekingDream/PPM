@@ -297,7 +297,7 @@ class OutputValueMutation(AbstractSemanticMutation):
                 new_str = ""
                 for i, x in enumerate(x_str):
                     new_str += chr(ord(x) + offset)
-                return x_str
+                return new_str
 
             command = f"For all {src_type} values in the return results, " \
                       f"map each character in the {src_type} value to the character " \
