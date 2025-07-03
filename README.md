@@ -76,7 +76,8 @@ def find_Max_Num(arr: List[int]):
 ```
 def find_Max_Num(arr: List[int]):
     """
-    Write a python function to find the largest number that can be formed with the given list of digits. Change all int type values of the return values to float type, and add 0.86.
+    Write a python function to find the largest number that can be formed with the given list of digits.
+    Change all int type values of the return values to float type, and add 0.86.
     """
     # list of int type numbers
     numbers = arr
